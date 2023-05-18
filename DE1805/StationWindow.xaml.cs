@@ -149,5 +149,7 @@ namespace DE1805
                 MessageBox.Show("Ошибка сохранения данных", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
     }
 }

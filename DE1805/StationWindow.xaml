@@ -64,6 +64,7 @@
                 </Grid>
                 
                 <Button Content="Сохранить изменения" Margin="0 6 0 0" Click="SaveButton_Click" />
+                <Button Content="Назад" Margin="0 6 0 0" Click="CloseButton_Click" />
             </StackPanel>
     </Grid>
 </Window>

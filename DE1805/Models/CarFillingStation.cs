@@ -11,7 +11,7 @@ namespace DE1805.Models;
 [Table("car_filling_stations")]
 public class CarFillingStation
 {
-    [Column("id"), JsonPropertyName("Station_ID"), DatabaseGenerated(DatabaseGeneratedOption.Identity)] public int Id { get; set; }
+    [Column("id"), JsonPropertyName("Station_ID")] public int Id { get; set; }
     [Column("address"), JsonPropertyName("Address")] public string Address { get; set; } = null!;
 
     [JsonPropertyName("data")]
