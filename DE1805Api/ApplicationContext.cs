@@ -1,26 +1,15 @@
-﻿using DE1805.Models;
+﻿using DE1805Api.Models;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace DE1805
+namespace DE1805Api
 {
     public class ApplicationContext: DbContext
     {
         public ApplicationContext() : base() { }
+        public ApplicationContext(DbContextOptions options) : base(options) { }
 
         public DbSet<CarFillingStation> CarFillingStations { get; set; }
         public DbSet<CarFillingStationData> CarFillingStationsData { get; set; }
-
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            base.OnConfiguring(optionsBuilder);
-            optionsBuilder.UseSqlServer("Data Source=localhost;Database=de1805;Trusted_Connection=True;TrustServerCertificate=true;");
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

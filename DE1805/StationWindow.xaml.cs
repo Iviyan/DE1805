@@ -1,19 +1,11 @@
 ﻿using DE1805.Models;
-using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Shapes;
-using static System.Collections.Specialized.BitVector32;
 
 namespace DE1805
 {
@@ -22,7 +14,9 @@ namespace DE1805
     /// </summary>
     public partial class StationWindow : Window
     {
-        private ApplicationContext context = new();
+        HttpClient http = new();
+        const string baseUrl = "http://localhost:5052";
+
         CarFillingStation? station = null;
 
         public int StationId { get; }
@@ -40,12 +34,20 @@ namespace DE1805
         /// </summary>
         private async Task Init()
         {
+            bool success = false;
             try
             {
-                station = await context.CarFillingStations.Where(s => s.Id == StationId)
-                    .Include(s => s.Data).SingleOrDefaultAsync();
+                HttpResponseMessage result = await http.GetAsync($"{baseUrl}/getStationInfo?id={StationId}");
+                if (result.StatusCode == HttpStatusCode.NotFound) success = true;
+                else if (result.StatusCode == HttpStatusCode.OK)
+                {
+                    station = await result.Content.ReadFromJsonAsync<CarFillingStation>();
+                    success = true;
+                }
             }
-            catch (Exception)
+            catch (Exception) { }
+
+            if (!success)
             {
                 MessageBox.Show("Ошибка загрузки данных", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 Close();
@@ -88,15 +90,11 @@ namespace DE1805
         /// <summary>
         /// Обработчик нажатия кнопки "Сохранить изменения"
         /// </summary>
-        private void SaveButton_Click(object sender, RoutedEventArgs e)
+        private async void SaveButton_Click(object sender, RoutedEventArgs e)
         {
-            if (station == null)
-            {
-                station = new() { Id = StationId };
-                context.Add(station);
-            }
+            CarFillingStation stationPatch = new() { Id = StationId };
 
-            var fuels = station.Data;
+            var fuels = stationPatch.Data;
 
             if (String.IsNullOrWhiteSpace(StationAddressTb.Text)
                 || !decimal.TryParse(Fuel92PriceTb.Text, out decimal fuel92Price)
@@ -112,42 +110,29 @@ namespace DE1805
                 MessageBox.Show("Одно или несколько полей заполнены некорректно.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
-            
-            station!.Address = StationAddressTb.Text;
 
-            var fuel92 = fuels.FirstOrDefault(f => f.Name == FuelTypes.AI92);
-            if (fuel92 == null)
-                station.Data.Add(fuel92 = new() { Price = fuel92Price, AmountOfFuel = fuel92Amount, Name = FuelTypes.AI92 });
-            else
-                (fuel92.Price, fuel92.AmountOfFuel) = (fuel92Price, fuel92Amount);
+            stationPatch!.Address = StationAddressTb.Text;
 
-            var fuel95 = fuels.FirstOrDefault(f => f.Name == FuelTypes.AI95);
-            if (fuel95 == null)
-                station.Data.Add(fuel95 = new() { Price = fuel95Price, AmountOfFuel = fuel95Amount, Name = FuelTypes.AI95 });
-            else
-                (fuel95.Price, fuel95.AmountOfFuel) = (fuel95Price, fuel95Amount);
+            stationPatch.Data.Add(new() { Price = fuel92Price, AmountOfFuel = fuel92Amount, Name = FuelTypes.AI92 });
+            stationPatch.Data.Add(new() { Price = fuel95Price, AmountOfFuel = fuel95Amount, Name = FuelTypes.AI95 });
+            stationPatch.Data.Add(new() { Price = fuel98Price, AmountOfFuel = fuel98Amount, Name = FuelTypes.AI98 });
+            stationPatch.Data.Add(new() { Price = fuelDtPrice, AmountOfFuel = fuelDtAmount, Name = FuelTypes.DT });
 
-            var fuel98 = fuels.FirstOrDefault(f => f.Name == FuelTypes.AI98);
-            if (fuel98 == null)
-                station.Data.Add(fuel98 = new() { Price = fuel98Price, AmountOfFuel = fuel98Amount, Name = FuelTypes.AI98 });
-            else
-                (fuel98.Price, fuel98.AmountOfFuel) = (fuel98Price, fuel98Amount);
 
-            var fuelDt = fuels.FirstOrDefault(f => f.Name == FuelTypes.DT);
-            if (fuelDt == null)
-                station.Data.Add(fuelDt = new() { Price = fuelDtPrice, AmountOfFuel = fuelDtAmount, Name = FuelTypes.DT });
-            else
-                (fuelDt.Price, fuelDt.AmountOfFuel) = (fuelDtPrice, fuelDtAmount);
-
+            bool success = false;
             try
             {
-                context.SaveChanges();
-
-                MessageBox.Show("Данные сохранены", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-            } catch (Exception)
-            {
-                MessageBox.Show("Ошибка сохранения данных", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                JsonContent content = JsonContent.Create(stationPatch);
+                var result = await http.PostAsync($"{baseUrl}/setStation", content);
+                if (result.IsSuccessStatusCode) {
+                    MessageBox.Show("Данные сохранены", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
+                    success = true;
+                }
             }
+            catch (Exception) { }
+
+            if (!success)
+                MessageBox.Show("Ошибка сохранения данных", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
         }
 
         private void CloseButton_Click(object sender, RoutedEventArgs e) => Close();
